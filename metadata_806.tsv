@@ -1,0 +1,13 @@
+sample-id	location	sample_site	temperature_C	replicate	pH	time_d	year	dive	run_date	quant_reading	Sample_or_Control	starting_reads	filtered_reads	percentage_of_input_passed_filter	denoised	LibrarySize	percentage_of_input_merged	non-chimeric	percentage_of_input_non-chimeric
+1-dil1to10-J21475-10C-515F-806R_S13	Mariana_forearc	Asut_Tesoru	10	B	12.37	2	2022	1475	9/6/25	0.0001	Sample	17089	15010	87.83	14893	13093	76.62	12134	71
+10-dil1to10-J21471-515F-806R_S22	Mariana_forearc	South_Chamorro_Seamount	55	B	10.3	6	2022	1471	9/6/25	0.0001	Sample	23320	20956	89.86	20523	18457	79.15	15307	65.64
+11-dil1to10-J21475-515F-806R_S23	Mariana_forearc	Asut_Tesoru	10	C	12.37	6	2022	1475	9/6/25	0.0001	Sample	53557	48055	89.73	47834	45622	85.18	40752	76.09
+12-dil1to10-J21477-515F-806R_S24	Mariana_forearc	Asut_Tesoru	10	C	12.47	2	2022	1477	9/6/25	0.0001	Sample	65448	58991	90.13	58704	56445	86.24	47323	72.31
+2-dil1to10-J21475-55C-515F-806R_S14	Mariana_forearc	Asut_Tesoru	55	B	12.37	2	2022	1475	9/6/25	0.0001	Sample	63856	57344	89.8	57139	53294	83.46	48586	76.09
+3-dil1to10-J21477-10C-515F-806R_S15	Mariana_forearc	Asut_Tesoru	10	B	12.47	2	2022	1477	9/6/25	0.0001	Sample	22454	20124	89.62	20093	17697	78.81	14064	62.63
+4-dil1to10-J21477-30C-515F-806R_S16	Mariana_forearc	Asut_Tesoru	30	A	12.47	2	2022	1477	9/6/25	0.174	Sample	54015	47944	88.76	47718	45264	83.8	39142	72.47
+5-dil1to10-J21477-55C-515F-806R_S17	Mariana_forearc	Asut_Tesoru	55	A	12.47	2	2022	1477	9/6/25	0.0001	Sample	21725	19585	90.15	19532	17667	81.32	13129	60.43
+6-dil1to10-J21472-10C-515F-806R_S18	Mariana_forearc	South_Chamorro_Seamount	10	A	12.29	2	2022	1472	9/6/25	0.106	Sample	19134	17612	92.05	17492	16456	86	12542	65.55
+7-dil1to10-J21472-30C-515F-806R_S19	Mariana_forearc	South_Chamorro_Seamount	30	A	12.29	2	2022	1472	9/6/25	0.0001	Sample	51796	45126	87.12	44984	42496	82.04	36204	69.9
+8-dil1to10-J21472-55C-515F-806R_S20	Mariana_forearc	South_Chamorro_Seamount	55	B	12.29	2	2022	1472	9/6/25	0.0001	Sample	44991	40247	89.46	39992	37560	83.48	34041	75.66
+9-dil1to10-J21475-30C-515F-806R_S21	Mariana_forearc	Asut_Tesoru	30	B	12.37	2	2022	1475	9/6/25	0.0001	Sample	55487	49764	89.69	49626	47202	85.07	40746	73.43
