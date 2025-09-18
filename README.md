@@ -752,19 +752,397 @@ qiime feature-table core-features \
 ```
 
 ## Step 11: Create metadata file for your samples, add DADA2 stats to it
-It has to be a very specific format, see link below for guide. 
+It has to be a very specific format, see link below for guide or my metadata files uploaded to this repo. 
 ```
 https://docs.qiime2.org/2024.10/tutorials/metadata/
 
 # To grab the DADA2 stats in table form
 Qiime2 View —> paired-end-input-dada2-stats_926R.qzv —> download metadata table
 
-# Make sure the first line "#q2:…" is deleted because this will be imported as a Qiime2 object, and Qiime2 won’t be 	able to do it correctly if that line is still in there. 
+# Make sure the first line "#q2:…" is deleted because this will be imported as a Qiime2 object, and Qiime2 won’t be able to do it correctly if that line is still in there.
 ```
 
-## Step 12: 
-View the classification.qzv on Qiime2 View. download it as a .tsv. This file has the ASV ID’s matched with the taxonomy. 
+## Step 12: View the classification.qzv on Qiime2 View. Download it as a .tsv. This file has the ASV ID’s matched with the taxonomy. 
 
+## Step 13: Cull the taxonomy according to the contaminant taxa in low biomass tables listed in Table S1 from Sheik et al., 2018. Make sure to save a spreadsheet with all of the removed taxa! 
+***Table S1 is in the files for this repo***
+
+## Step 14: Join the culled taxonomy file with the samples-asv-table_<primer>.tsv (the feature table showing the frequency of ASV’s) using R_left join. 
+This will remove the contaminant ASV's. Put these files on your local computer and run them in R Studio. You can also run them in the R environment on the cluster, but I find it easier if I can inspect all of the results in R Studio. 
+- Change the first column of the culled ASV file to #OTU ID or Qiime2 will not be able to import it as a Qiime2 artifact.
+### 515F/806R
+```
+#import tax table
+culled_taxa_806 <- read.csv("/Users/sabrinaelkassas/Downloads/Qiime2_runs/less_filtered_qiime2_run5/less_filtered_qiime2_run5_806R/ASV_Taxonomy_culled.csv", header = TRUE)
+
+#check the number of rows
+nrow(culled_taxa_806)
+#[186]
+
+#import ASV table
+asv_table_806 <- read.table("/Users/sabrinaelkassas/Downloads/Qiime2_runs/less_filtered_qiime2_run5/less_filtered_qiime2_run5_806R/samples-asv-table_806R.csv", sep = ",", header = TRUE)
+
+nrow(asv_table_806)
+#[382]
+
+#Left join to filter out ASV's to only include those I've filtered out in the taxonomy file.
+joined_tax_asv <- left_join(culled_taxa_806, asv_table_806, by = "Feature.ID")
+
+#make sure there are only 186 rows
+nrow(joined_tax_asv)
+#[186]
+
+#[Write to csv then split back up]
+write.table(joined_tax_asv, "/Users/sabrinaelkassas/Downloads/Qiime2_runs/less_filtered_qiime2_run5/less_filtered_qiime2_run5_806R/joined_tax_asv_806R.tsv", sep = "\t")
+```
+
+### 515F/926R
+```
+#import tax table
+culled_taxa_926 <- read.csv("/Users/sabrinaelkassas/Downloads/Qiime2_runs/less_filtered_qiime2_run5/less_filtered_qiime2_run5_926R/ASV_Taxonomy_culled.csv", header = TRUE)
+
+#check the number of rows
+nrow(culled_taxa_926)
+#[167]
+
+#import ASV table
+asv_table_926 <- read.table("/Users/sabrinaelkassas/Downloads/Qiime2_runs/less_filtered_qiime2_run5/less_filtered_qiime2_run5_926R/samples-asv-table_926R.csv", sep = ",", header = TRUE)
+
+nrow(asv_table_926)
+#[277]
+
+#Left join to filter out ASV's to only include those I've filtered out in the taxonomy file.
+joined_tax_asv <- left_join(culled_taxa_926, asv_table_926, by = "Feature.ID")
+
+#make sure there are only 186 rows
+nrow(joined_tax_asv)
+#[167]
+
+#[Write to csv then split back up]
+write.table(joined_tax_asv, "/Users/sabrinaelkassas/Downloads/Qiime2_runs/less_filtered_qiime2_run5/less_filtered_qiime2_run5_926R/joined_tax_asv_926R.tsv", sep = "\t")
+```
+
+## Step 15: Separate out the files again, this time all of the ASV’s of junk taxa will be removed.
+I just copied and pasted into a new .tsv file in Excel, keeping only the ASV ID column and the counts for all of the samples. 
+
+
+## Step 16: Upload back into Qiime2 to convert .tsv to .qza files. 
+Slurm script name: qiime2_convert_2_qza.sh
+### 515F/806R:
+```
+#!/bin/bash
+#SBATCH --partition=compute
+#SBATCH --job-name=qiime2_qza_806R
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=selkassas@whoi.edu
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=10gb
+#SBATCH --time=24:00:00
+#SBATCH --output=qiime2_qza_806R.log
+
+export OMP_NUM_THREADS=4
+
+module load singularity/3.7
+
+CONTAINER=/vortexfs1/home/selkassas/amplicon_2024.2.sif
+WORKDIR="/vortexfs1/omics/huber/selkassas/Mariana_amplicon_sequences_2/data_515F_806R/culled_tables"
+export MPLCONFIGDIR=/tmp/mplconfig && mkdir -p $MPLCONFIGDIR
+
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime tools import \
+  --type 'FeatureData[Taxonomy]' \
+  --input-format TSVTaxonomyFormat \
+  --input-path /data/taxonomy_culled.tsv \
+  --output-path /data/taxonomy_culled.qza
+
+# A) TSV -> BIOM (HDF5)
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+biom convert \
+  -i /data/culled_asv_806R.tsv \
+  -o /data/feature-table.biom \
+  --table-type="OTU table" \
+  --to-hdf5
+# if biom complains about the first column name, make sure it is "#OTU ID" (add the hash)
+
+# B) BIOM -> QZA
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime tools import \
+  --type 'FeatureTable[Frequency]' \
+  --input-path /data/feature-table.biom \
+  --input-format BIOMV210Format \
+  --output-path /data/feature-table_806R.qza
+```
+
+### 515F/926R:
+```
+#!/bin/bash
+#SBATCH --partition=compute
+#SBATCH --job-name=qiime2_qza_926R
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=selkassas@whoi.edu
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=10gb
+#SBATCH --time=24:00:00
+#SBATCH --output=qiime2_qza_926R.log
+
+export OMP_NUM_THREADS=4
+
+module load singularity/3.7
+
+CONTAINER=/vortexfs1/home/selkassas/amplicon_2024.2.sif
+WORKDIR="/vortexfs1/omics/huber/selkassas/Mariana_amplicon_sequences_2/data_515F_926R/culled_tables"
+export MPLCONFIGDIR=/tmp/mplconfig && mkdir -p $MPLCONFIGDIR
+
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime tools import \
+  --type 'FeatureData[Taxonomy]' \
+  --input-format TSVTaxonomyFormat \
+  --input-path /data/taxonomy_culled.tsv \
+  --output-path /data/taxonomy_culled.qza
+
+# A) TSV -> BIOM (HDF5)
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+biom convert \
+  -i /data/culled_asv_926R.tsv \
+  -o /data/feature-table.biom \
+  --table-type="OTU table" \
+  --to-hdf5
+# if biom complains about the first column name, make sure it is "#OTU ID" (add the hash)
+
+# B) BIOM -> QZA
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime tools import \
+  --type 'FeatureTable[Frequency]' \
+  --input-path /data/feature-table.biom \
+  --input-format BIOMV210Format \
+  --output-path /data/feature-table_926R.qza
+```
+
+## Step 17: Run all of the diversity statistics/make a tree
+### 515F/806R:
+```
+#!/bin/bash
+#SBATCH --partition=compute
+#SBATCH --job-name=qiime2_taxa_diversity_806R
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=selkassas@whoi.edu
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=25gb
+#SBATCH --time=24:00:00
+#SBATCH --output=qiime2_taxa_diversity_806R.log
+
+export OMP_NUM_THREADS=4
+
+module load singularity/3.7
+
+CONTAINER=/vortexfs1/home/selkassas/amplicon_2024.2.sif
+WORKDIR="/vortexfs1/omics/huber/selkassas/Mariana_amplicon_sequences_2/data_515F_806R/culled_tables"
+export MPLCONFIGDIR=/tmp/mplconfig && mkdir -p $MPLCONFIGDIR
+
+#Get the tables ready for the heatmap
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime taxa filter-table \
+--i-table /data/feature-table_806R.qza \
+--i-taxonomy /data/taxonomy_culled.qza \
+--p-include "g__" \
+--o-filtered-table /data/table-with-genera.qza
+
+#collapse by genera
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime taxa collapse \
+ --i-table /data/table-with-genera.qza \
+ --i-taxonomy /data/taxonomy_culled.qza \
+ --p-level 6 \
+ --o-collapsed-table /data/genera-taxonomy-table.qza
+
+#make the heatmap
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime feature-table heatmap \
+ --i-table /data/genera-taxonomy-table.qza \
+ --m-sample-metadata-file /data/metadata_806.tsv \
+ --m-sample-metadata-column "sample_site" \
+ --p-cluster features \
+ --o-visualization /data/heatmap_806.qzv
+
+#check rarefaction depth
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime feature-table summarize \
+ --i-table /data/feature-table_806R.qza  \
+ --o-visualization /data/table-summary_806R.qzv \
+ --m-sample-metadata-file /data/metadata_806.tsv
+
+# Build rooted tree
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime phylogeny align-to-tree-mafft-fasttree \
+ --i-sequences /data/paired-end-input-asvs-ref-seqs_806R.qza \
+ --o-alignment /data/aligned-rep-seqs_806R.qza \
+ --o-masked-alignment /data/masked-aligned-rep-seqs_806R.qza \
+ --o-tree /data/unrooted-tree_806R.qza \
+ --o-rooted-tree /data/rooted-tree_806R.qza
+
+# Taxonomy barplots
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime taxa barplot \
+ --i-table /data/feature-table_806R.qza \
+ --i-taxonomy /data/taxonomy_culled.qza \
+ --m-metadata-file /data/metadata_806.tsv \
+ --o-visualization /data/taxonomy-barplot_806R.qzv
+
+# Core diversity metrics (update sampling depth as needed)
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime diversity core-metrics-phylogenetic \
+ --i-phylogeny /data/rooted-tree_806R.qza \
+ --i-table /data/feature-table_806R.qza \
+ --m-metadata-file /data/metadata_806.tsv \
+ --p-sampling-depth 5000 \
+ --output-dir /data/output-dir \
+ --p-n-jobs-or-threads $SLURM_CPUS_PER_TASK
+
+# Alpha diversity significance tests
+for metric in faith_pd_vector shannon_vector observed_features_vector; do
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime diversity alpha-group-significance \
+  --i-alpha-diversity /data/output-dir/${metric}.qza \
+  --m-metadata-file /data/metadata_806.tsv \
+  --o-visualization /data/output-dir/${metric}-group-significance_806R.qzv
+done
+
+# Export Newick
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime tools export \
+   --input-path /data/rooted-tree_806R.qza \
+   --output-path /data/exported-tree
+
+#compute rarefaction curve:
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime diversity alpha-rarefaction \
+  --i-table /data/feature-table_806R.qza \
+  --i-phylogeny /data/rooted-tree_806R.qza \
+  --m-metadata-file /data/metadata_806.tsv \
+  --p-max-depth 40000 \
+  --p-metrics shannon faith_pd \
+  --o-visualization /data/alpha-rarefaction.qzv
+```
+
+### 515F/926R
+```
+#!/bin/bash
+#SBATCH --partition=compute
+#SBATCH --job-name=qiime2_taxa_diversity_926R
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=selkassas@whoi.edu
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=25gb
+#SBATCH --time=24:00:00
+#SBATCH --output=qiime2_taxa_diversity_926R.log
+
+export OMP_NUM_THREADS=4
+
+module load singularity/3.7
+
+CONTAINER=/vortexfs1/home/selkassas/amplicon_2024.2.sif
+WORKDIR="/vortexfs1/omics/huber/selkassas/Mariana_amplicon_sequences_2/data_515F_926R/culled_tables"
+export MPLCONFIGDIR=/tmp/mplconfig && mkdir -p $MPLCONFIGDIR
+
+#Get the tables ready for the heatmap
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime taxa filter-table \
+--i-table /data/feature-table_926R.qza \
+--i-taxonomy /data/taxonomy_culled.qza \
+--p-include "g__" \
+--o-filtered-table /data/table-with-genera.qza
+
+#collapse by genera
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime taxa collapse \
+ --i-table /data/table-with-genera.qza \
+ --i-taxonomy /data/taxonomy_culled.qza \
+ --p-level 6 \
+ --o-collapsed-table /data/genera-taxonomy-table.qza
+
+#make the heatmap
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime feature-table heatmap \
+ --i-table /data/genera-taxonomy-table.qza \
+ --m-sample-metadata-file /data/metadata_926.tsv \
+ --m-sample-metadata-column "sample_site" \
+ --p-cluster features \
+ --o-visualization /data/heatmap_926.qzv
+
+#check rarefaction depth
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime feature-table summarize \
+ --i-table /data/feature-table_926R.qza  \
+ --o-visualization /data/table-summary_926R.qzv \
+ --m-sample-metadata-file /data/metadata_926.tsv
+
+# Build rooted tree
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime phylogeny align-to-tree-mafft-fasttree \
+ --i-sequences /data/paired-end-input-asvs-ref-seqs_926R.qza \
+ --o-alignment /data/aligned-rep-seqs_926R.qza \
+ --o-masked-alignment /data/masked-aligned-rep-seqs_926R.qza \
+ --o-tree /data/unrooted-tree_926R.qza \
+ --o-rooted-tree /data/rooted-tree_926R.qza
+
+# Taxonomy barplots (updated, with culled taxa)
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime taxa barplot \
+ --i-table /data/feature-table_926R.qza \
+ --i-taxonomy /data/taxonomy_culled.qza \
+ --m-metadata-file /data/metadata_926.tsv \
+ --o-visualization /data/taxonomy-barplot_926R.qzv
+
+# Core diversity metrics (update sampling depth as needed)
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime diversity core-metrics-phylogenetic \
+ --i-phylogeny /data/rooted-tree_926R.qza \
+ --i-table /data/feature-table_926R.qza \
+ --m-metadata-file /data/metadata_926.tsv \
+ --p-sampling-depth 5000 \
+ --output-dir /data/output-dir \
+ --p-n-jobs-or-threads $SLURM_CPUS_PER_TASK
+
+# Alpha diversity significance tests
+for metric in faith_pd_vector shannon_vector observed_features_vector; do
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime diversity alpha-group-significance \
+  --i-alpha-diversity /data/output-dir/${metric}.qza \
+  --m-metadata-file /data/metadata_926.tsv \
+  --o-visualization /data/output-dir/${metric}-group-significance_926R.qzv
+done
+
+# Export Newick
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime tools export \
+   --input-path /data/rooted-tree_926R.qza \
+   --output-path /data/exported-tree
+
+#compute rarefaction curve:
+singularity exec --bind ${WORKDIR}:/data ${CONTAINER} \
+qiime diversity alpha-rarefaction \
+  --i-table /data/feature-table_926R.qza \
+  --i-phylogeny /data/rooted-tree_926R.qza \
+  --m-metadata-file /data/metadata_806.tsv \
+  --p-max-depth 40000 \
+  --p-metrics shannon faith_pd \
+  --o-visualization /data/alpha-rarefaction.qzv
+```
+
+## Step 18: Visualize all figures (.qzv files) using Qiime2 View
+put them on your local computer using scp
+```
+#open terminal
+scp -r selkassas@poseidon.whoi.edu:/vortexfs1/omics/huber/selkassas/Mariana_amplicon_sequences_2/data_515F_806R/culled_tables users/selkassas/Downloads
+#enter your password and the files should load onto your computer.
+
+#Qiime2 View
+https://view.qiime2.org/
+``` 
 # References: 
 1. Sheik CS, Reese BK, Twing KI, Sylvan JB, Grim SL, Schrenk MO, Sogin ML, Colwell FS. Identification and removal of contaminant sequences from ribosomal gene databases: lessons from the census of deep life. Frontiers in microbiology. 2018 Apr 30;9:840.
 2. Zhou J, Bruns MA, Tiedje JM. DNA recovery from soils of diverse composition. Applied and environmental microbiology. 1996 Feb;62(2):316-22.
