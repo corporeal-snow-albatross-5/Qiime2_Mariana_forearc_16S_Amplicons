@@ -16,7 +16,7 @@ How to process 16S rRNA amplicon sequences using Qiime2. These samples were very
 ## Sequencing
 Illumina Miseq using an Illumina PE250 Nano (500 cycles) reagent kit.
 
-## Step 1: Install Qiime2 (v2024.10.1) on Poseidon using a singularity containiner: 
+## Step 1: Install Qiime2 (v2024.10.1) on Poseidon using a singularity container: 
 ```
 #enter scavenger 
 srun -p scavenger --time=04:00:00 --ntasks-per-node 1 --mem=5gb --pty bash
